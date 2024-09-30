@@ -1,0 +1,96 @@
+name: Documentation build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  commit-to-master-image-deploy:
+    name: Commit to master deploy
+    runs-on: ubuntu-latest
+    if: gitea.ref == 'refs/heads/master'
+    container:
+      image: catthehacker/ubuntu:act-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vars
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_REGISTRY=europe-central2-docker.pkg.dev" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker BuildX
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authorize GCP
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 363.0.0'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker authentication
+        run: |
+          gcloud auth configure-docker ${{ steps.vars.outputs.ARTIFACT_REGISTRY }} --quiet
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.vars.outputs.ARTIFACT_REGISTRY }}/minecodes/minecodes/minecodes-docs:${{ steps.vars.outputs.sha_short }}
+          provenance: false
+
+  release-image-deploy:
+    name: Release deploy
+    runs-on: ubuntu-latest
+    if: startsWith(gitea.ref, 'refs/tags/')
+    container:
+      image: catthehacker/ubuntu:act-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vars
+        id: vars
+        run: |
+          echo "ARTIFACT_REGISTRY=europe-central2-docker.pkg.dev" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker BuildX
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker ${{ steps.vars.outputs.ARTIFACT_REGISTRY }} --quiet
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.ARTIFACT_REGISTRY }}/minecodes/minecodes/minecodes-docs:latest
+            ${{ steps.vars.outputs.ARTIFACT_REGISTRY }}/minecodes/minecodes/minecodes-docs:${{ gitea.ref_name }}
+          provenance: false
