@@ -16,7 +16,7 @@ Redis Cloud offers a free tier with up to 512MB of memory, which is suitable for
 1. Go to the Redis Cloud website (https://redis.com/try-free/).
 2. Sign up for a free account.
 3. Create a new database:
-    - Choose the free tier (512MB).
+    - Choose the free tier (30MB).
     - Select a cloud provider and region closest to your Minecraft servers.
     - Set a name for your database.
 4. Once created, you'll receive connection details including:
