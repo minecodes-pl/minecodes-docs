@@ -2,7 +2,7 @@
 # 1) Node image for building frontend assets
 # 2) nginx stage to serve frontend assets
 
-FROM node:21.7.3-alpine AS builder
+FROM node:22.12.0-alpine AS builder
 WORKDIR /app
 
 COPY docs ./docs
